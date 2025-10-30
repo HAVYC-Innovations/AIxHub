@@ -1,0 +1,133 @@
+# =========================
+# .gitignore para AIxHub
+# - Cubre reglas generales y específicas para:
+#   - app/front  (frontend: Node, React, Vue, etc.)
+#   - app/back   (backend: Node, Python, otros)
+# =========================
+
+# --- Sistema / OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# --- IDEs / editores ---
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# --- Logs ---
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Runtime / process files ---
+pids/
+*.pid
+*.seed
+
+# --- Environment files ---
+.env
+.env.*.local
+.env.local
+.env.test
+
+# --- Dependency directories (root-level) ---
+node_modules/
+/.pnp/
+
+# --- Build / output ---
+dist/
+build/
+coverage/
+.cache/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+venv/
+env/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+*.egg-info/
+.eggs/
+
+# --- Java / JVM ---
+target/
+
+# --- Go / binaries ---
+bin/
+*.exe
+
+# =========================
+# Reglas específicas para app/front
+# =========================
+/app/front/node_modules/
+/app/front/dist/
+/app/front/build/
+/app/front/.next/
+/app/front/.nuxt/
+/app/front/.vite/
+/app/front/.parcel-cache/
+/app/front/.cache/
+/app/front/public/build/
+/app/front/.DS_Store
+/app/front/npm-debug.log*
+/app/front/yarn-error.log*
+/app/front/.env
+/app/front/.env.local
+/app/front/.env.*.local
+
+# Si tu frontend usa frameworks/ herramientas específicas
+/app/front/.turbo/
+/app/front/.vercel/
+/app/front/.netlify/
+
+# =========================
+# Reglas específicas para app/back
+# (incluye tanto Node.js como proyectos Python u otros)
+# =========================
+/app/back/node_modules/
+/app/back/dist/
+/app/back/build/
+/app/back/.cache/
+/app/back/.serverless/
+/app/back/.turbo/
+/app/back/.vercel/
+
+# Entornos Python dentro de back
+/app/back/venv/
+/app/back/env/
+/app/back/.venv/
+/app/back/__pycache__/
+/app/back/*.py[cod]
+
+# Entornos y archivos de configuración locales
+/app/back/.env
+/app/back/.env.local
+/app/back/.env.*.local
+
+# Logs específicos del backend
+/app/back/logs/
+/app/back/*.log
+
+# =========================
+# Opcionales / extras
+# - Ignora archivos de lock solo si lo deseas (generalmente conviene commitearlos)
+# - Ajusta según tecnologías concretas (Docker, Terraform, etc.)
+# =========================
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Terraform
+.terraform/
+
