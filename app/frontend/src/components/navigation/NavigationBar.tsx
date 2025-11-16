@@ -43,7 +43,7 @@ const NavigationBar = ({
   return (
     <aside
       className={clsx(
-        'flex min-h-screen flex-col gap-5 border-r border-white/5 bg-[#07090f]/95 text-slate-100 transition-[width,padding] duration-200 ease-out',
+        'flex h-screen min-h-screen flex-col gap-5 border-r border-white/5 bg-[#07090f]/95 text-slate-100 transition-[width,padding] duration-200 ease-out overflow-y-auto',
         isExpanded ? 'w-[300px] px-6 py-8' : 'w-24 items-center px-3 py-8',
       )}
     >
@@ -66,19 +66,18 @@ const NavigationBar = ({
         )}
       </div>
 
-      <button
-        type="button"
-        className={clsx(
-          'flex flex-col items-center justify-center gap-1 rounded-[22px] border border-white/10 bg-white/5 p-4 text-white transition hover:border-indigo-400/60 hover:bg-indigo-500/10',
-          isExpanded ? 'w-20 self-center' : 'w-full',
-        )}
-        onClick={onToggle}
-        aria-label={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
-      >
-        <span className="block h-0.5 w-6 rounded-full bg-white" />
-        <span className="block h-0.5 w-6 rounded-full bg-white" />
-        <span className="block h-0.5 w-6 rounded-full bg-white" />
-      </button>
+      {!isExpanded && (
+        <button
+          type="button"
+          className="flex w-full flex-col items-center justify-center gap-1 rounded-[22px] border border-white/10 bg-white/5 p-4 text-white transition hover:border-indigo-400/60 hover:bg-indigo-500/10"
+          onClick={onToggle}
+          aria-label="Expand sidebar"
+        >
+          <span className="block h-0.5 w-6 rounded-full bg-white" />
+          <span className="block h-0.5 w-6 rounded-full bg-white" />
+          <span className="block h-0.5 w-6 rounded-full bg-white" />
+        </button>
+      )}
 
       <button
         type="button"
@@ -118,8 +117,8 @@ const NavigationBar = ({
                   )}
                 >
                   {isExpanded ? (
-                    <div>
-                      <strong className="block text-sm font-semibold leading-tight">{entry.title}</strong>
+                    <div className="flex flex-col">
+                      <strong className="block truncate text-sm font-semibold leading-tight text-white">{entry.title}</strong>
                       <small className="text-xs text-slate-400">{entry.timestamp}</small>
                     </div>
                   ) : (

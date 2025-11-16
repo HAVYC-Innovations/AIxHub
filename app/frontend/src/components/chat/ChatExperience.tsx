@@ -7,7 +7,7 @@ import NavigationBar from '../navigation/NavigationBar'
 import type { Role } from '../../types/roles'
 import { roleLabelMap } from '../../types/roles'
 
-type ModeOption = 'deepthink' | 'search'
+type ModeOption = 'deepthink' | 'search' | 'models'
 
 type Attachment = {
   id: string
@@ -92,6 +92,10 @@ const craftAiResponse = (prompt: string, attachments: Attachment[], role: Role, 
     return 'Launching a quick research sweep. I will blend fresh sources with our context and report back with references.'
   }
 
+  if (mode === 'models') {
+    return 'Opening the model library. I will compare capabilities, latency, and pricing so you can pick the best fit.'
+  }
+
   if (role === 'guest') {
     return 'I captured your request. To unlock more prompts and file uploads, sign in or upgrade when you are ready.'
   }
@@ -139,6 +143,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
   const [isCompactComposer, setIsCompactComposer] = useState(false)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId)
   const messages = useMemo(() => activeConversation?.messages ?? [], [activeConversation])
@@ -298,6 +303,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
   const toggleSidebar = () => setIsSidebarExpanded((state) => !state)
   const hasConversation = messages.some((message) => message.role === 'user')
   const showConversationWindow = hasConversation || isThinking
+  const showHero = !hasConversation
   const handleModeChange = (mode: ModeOption) => {
     setActiveMode(mode)
   }
@@ -317,6 +323,12 @@ const ChatExperience = (props: ChatExperienceProps) => {
   const openFilePicker = () => {
     fileInputRef.current?.click()
   }
+
+  useEffect(() => {
+    if (!textareaRef.current) return
+    textareaRef.current.style.height = 'auto'
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+  }, [input])
 
   const profileCard = selectedRole === 'guest'
     ? { name: 'Guest', subtitle: 'Preview mode', cta: 'Access' }
@@ -349,7 +361,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
   }
 
   return (
-    <div className="flex min-h-screen bg-[radial-gradient(circle_at_20%_-10%,rgba(68,83,149,0.55),rgba(6,8,12,1)_55%)] text-slate-100">
+    <div className="flex h-screen min-h-screen bg-[radial-gradient(circle_at_20%_-10%,rgba(68,83,149,0.55),rgba(6,8,12,1)_55%)] text-slate-100">
       <NavigationBar
         isExpanded={isSidebarExpanded}
         onToggle={toggleSidebar}
@@ -362,86 +374,103 @@ const ChatExperience = (props: ChatExperienceProps) => {
         emptyState="No chats yet"
       />
 
-      <section className="flex flex-1 flex-col items-center overflow-y-auto px-6 py-10 lg:px-12">
-        <header className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 text-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-indigo-500 text-2xl text-night-900">
-            △
-          </div>
-          <p className="text-xs uppercase tracking-[0.4em] text-slate-400">{roleLabelMap[selectedRole]}</p>
-          <h1 className="text-4xl font-semibold text-white sm:text-5xl">{headline}</h1>
-          <p className="max-w-2xl text-lg text-slate-300">{subheadline}</p>
-        </header>
+      <section
+        className={clsx(
+          'flex flex-1 flex-col items-center px-6 py-10 lg:px-12',
+          showHero ? 'overflow-y-auto' : 'overflow-hidden',
+        )}
+      >
+        {showHero && (
+          <header className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 text-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-indigo-500 text-2xl text-night-900">
+              △
+            </div>
+            <p className="text-xs uppercase tracking-[0.4em] text-slate-400">{roleLabelMap[selectedRole]}</p>
+            <h1 className="text-4xl font-semibold text-white sm:text-5xl">{headline}</h1>
+            <p className="max-w-2xl text-lg text-slate-300">{subheadline}</p>
+          </header>
+        )}
 
         {showConversationWindow && (
-          <section className="mt-10 w-full max-w-3xl space-y-6 rounded-4xl border border-white/5 bg-white/5 p-6 shadow-pane backdrop-blur">
-            {messages.map((message) => {
-              const isUser = message.role === 'user'
-              return (
-                <article
-                  key={message.id}
-                  className={clsx('flex w-full gap-4', isUser ? 'flex-row-reverse text-right' : 'text-left')}
-                >
-                  <div
-                    className={clsx(
-                      'flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl text-sm font-semibold',
-                      isUser ? 'bg-sky-500/20 text-sky-200' : 'bg-indigo-500/20 text-indigo-200',
-                    )}
-                  >
-                    {isUser ? 'You' : 'AI'}
-                  </div>
-                  <div
-                    className={clsx(
-                      'flex max-w-[80%] flex-col rounded-3xl border px-4 py-3 text-sm leading-relaxed shadow-sm',
-                      isUser ? 'border-sky-500/30 bg-night-900/70 text-slate-100' : 'border-white/10 bg-white/5 text-slate-100',
-                    )}
-                  >
-                    <header className="mb-1 flex items-center gap-2 text-xs text-slate-400">
-                      <strong className="font-semibold text-white">{isUser ? 'You' : 'AIxHub'}</strong>
-                      <span>{message.timestamp}</span>
-                    </header>
-                    <p className="whitespace-pre-wrap text-base text-slate-100">{message.content}</p>
-                    {!!message.attachments?.length && (
-                      <ul className="mt-3 flex flex-wrap gap-2 text-xs">
-                        {message.attachments.map((file) => (
-                          <li
-                            key={file.id}
-                            className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1"
-                          >
-                            <span>{file.name}</span>
-                            <small className="text-slate-400">{file.size}</small>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </article>
-              )
-            })}
-            {isThinking && (
-              <div className="flex items-center gap-4 text-left">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-200">
-                  AI
-                </div>
-                <div className="flex gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
-                  {[0, 1, 2].map((dot) => (
-                    <span
-                      key={dot}
-                      className="h-2 w-2 rounded-full bg-white/70 opacity-80 animate-pulse-dot"
-                      style={{ animationDelay: `${dot * 150}ms` }}
-                    />
-                  ))}
-                </div>
-              </div>
+          <section
+            className={clsx(
+              'mt-6 w-full max-w-3xl flex-1 overflow-hidden rounded-4xl border border-white/5 bg-white/5 p-6 shadow-pane backdrop-blur',
+              showHero ? 'mt-10' : 'mt-0',
             )}
-            <div ref={chatEndRef} />
+          >
+            <div className="flex h-full flex-col">
+              <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+                {messages.map((message) => {
+                  const isUser = message.role === 'user'
+                  return (
+                    <article
+                      key={message.id}
+                      className={clsx(
+                        'flex w-full',
+                        isUser ? 'justify-end text-right' : 'justify-start text-left',
+                      )}
+                    >
+                      <div
+                        className={clsx(
+                          'relative flex max-w-[80%] flex-col rounded-3xl border px-4 py-3 text-sm leading-relaxed shadow-sm',
+                          isUser
+                            ? 'border-sky-500/30 bg-[#03050c]/90 text-slate-100'
+                            : 'border-white/10 bg-white/5 text-slate-100',
+                        )}
+                      >
+                        <header
+                          className={clsx(
+                            'mb-1 flex items-center gap-2 text-xs font-semibold',
+                            isUser ? 'text-sky-200' : 'text-indigo-200',
+                          )}
+                        >
+                          <span>{isUser ? 'You' : 'AIxHub'}</span>
+                          <span className="text-[11px] font-normal text-slate-400">{message.timestamp}</span>
+                        </header>
+                        <p className="break-words whitespace-pre-wrap text-base text-slate-100">{message.content}</p>
+                        {!!message.attachments?.length && (
+                          <ul className="mt-3 flex flex-wrap gap-2 text-xs">
+                            {message.attachments.map((file) => (
+                              <li
+                                key={file.id}
+                                className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1"
+                              >
+                                <span>{file.name}</span>
+                                <small className="text-slate-400">{file.size}</small>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </article>
+                  )
+                })}
+                {isThinking && (
+                  <div className="flex w-full justify-start">
+                    <div className="flex gap-2 rounded-3xl border border-white/10 bg-white/5 px-4 py-3">
+                      {[0, 1, 2].map((dot) => (
+                        <span
+                          key={dot}
+                          className="h-2 w-2 rounded-full bg-white/70 opacity-80 animate-pulse-dot"
+                          style={{ animationDelay: `${dot * 150}ms` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+            </div>
           </section>
         )}
 
         <section className="mt-10 w-full max-w-3xl rounded-4xl border border-white/10 bg-night-900/70 p-6 shadow-pane backdrop-blur">
-          <div className="mb-4 flex flex-col text-left text-sm text-slate-400">
-            <span className="text-base font-semibold text-white">AIxHub</span>
-            <span>How can I help you?</span>
-          </div>
+          {showHero && (
+            <div className="mb-4 flex flex-col text-left text-sm text-slate-400">
+              <span className="text-base font-semibold text-white">AIxHub</span>
+              <span>How can I help you?</span>
+            </div>
+          )}
 
           <div
             className={clsx(
@@ -456,8 +485,11 @@ const ChatExperience = (props: ChatExperienceProps) => {
               )}
             >
               <textarea
-                className="min-h-[88px] flex-1 resize-none bg-transparent text-base text-white placeholder:text-slate-500 focus:outline-none"
-                placeholder={`Message ${activeMode === 'deepthink' ? 'AIxHub' : 'Search'}`}
+                ref={textareaRef}
+                className="min-h-12 flex-1 resize-none bg-transparent text-base text-white placeholder:text-slate-500 focus:outline-none"
+                placeholder={`Message ${
+                  activeMode === 'deepthink' ? 'AIxHub' : activeMode === 'search' ? 'Search' : 'Models'
+                }`}
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
@@ -469,12 +501,22 @@ const ChatExperience = (props: ChatExperienceProps) => {
                     <input ref={fileInputRef} type="file" multiple onChange={handleFileChange} hidden />
                     <button
                       type="button"
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 text-lg text-white transition hover:border-sky-400/60 hover:text-sky-200"
+                      className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:border-sky-400/60 hover:text-sky-200"
                       onClick={openFilePicker}
                       onDrop={handleDrop}
                       onDragOver={handleDragOver}
+                      aria-label="Attach files"
                     >
-                      📎
+                      <svg
+                        viewBox="0 0 24 24"
+                        role="presentation"
+                        focusable="false"
+                        className="h-5 w-5 stroke-current"
+                        fill="none"
+                        strokeWidth={1.8}
+                      >
+                        <path d="M7 13l6.5-6.5a3.5 3.5 0 015 5L10 20a4.5 4.5 0 11-6.364-6.364L14 3" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
                     </button>
                   </>
                 )}
@@ -495,11 +537,13 @@ const ChatExperience = (props: ChatExperienceProps) => {
             </div>
           </div>
 
-          <p className="mt-3 text-sm text-slate-400">
-            {isCompactComposer
-              ? 'Tap the arrow to send. Shift+Enter adds a line break.'
-              : 'Press Enter to send. Use Shift+Enter for a new line.'}
-          </p>
+          {showHero && (
+            <p className="mt-3 text-sm text-slate-400">
+              {isCompactComposer
+                ? 'Tap the arrow to send. Shift+Enter adds a line break.'
+                : 'Press Enter to send. Use Shift+Enter for a new line.'}
+            </p>
+          )}
 
           {attachmentsEnabled && pendingFiles.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-3">
@@ -521,7 +565,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
           )}
 
           <div className="mt-6 flex gap-3 rounded-3xl border border-white/10 bg-white/5 p-1">
-            {(['deepthink', 'search'] as ModeOption[]).map((mode) => (
+            {(['deepthink', 'search', 'models'] as ModeOption[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
@@ -533,7 +577,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
                 )}
                 onClick={() => handleModeChange(mode)}
               >
-                {mode === 'deepthink' ? 'DeepThink' : 'Search'}
+                {mode === 'deepthink' ? 'DeepThink' : mode === 'search' ? 'Search' : 'Models'}
               </button>
             ))}
           </div>
