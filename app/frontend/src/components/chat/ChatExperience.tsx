@@ -115,6 +115,9 @@ const craftAiResponse = (prompt: string, attachments: Attachment[], role: Role, 
   return 'Message received. I will start drafting the work plan and keep the chat updated as I progress.'
 }
 
+const getIsMobileViewport = () =>
+  (typeof window !== 'undefined' ? window.innerWidth < 768 : false)
+
 const ChatExperience = (props: ChatExperienceProps) => {
   const {
     role: initialRole,
@@ -135,15 +138,19 @@ const ChatExperience = (props: ChatExperienceProps) => {
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [isThinking, setIsThinking] = useState(false)
   const [promptCount, setPromptCount] = useState(0)
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(true)
+  const [isSidebarExpanded, setIsSidebarExpanded] = useState(() => !getIsMobileViewport())
   const [activeMode, setActiveMode] = useState<ModeOption>('deepthink')
   const [isAuthOpen, setIsAuthOpen] = useState(false)
   const [authTab, setAuthTab] = useState<'signin' | 'signup'>('signin')
   const [selectedRole, setSelectedRole] = useState<Role>(initialRole)
   const [isCompactComposer, setIsCompactComposer] = useState(false)
+  const [isMobileView, setIsMobileView] = useState(getIsMobileViewport)
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false)
   const chatEndRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const modelMenuRef = useRef<HTMLDivElement | null>(null)
 
   const activeConversation = conversations.find((conversation) => conversation.id === activeConversationId)
   const messages = useMemo(() => activeConversation?.messages ?? [], [activeConversation])
@@ -174,13 +181,32 @@ const ChatExperience = (props: ChatExperienceProps) => {
   useEffect(() => {
     if (typeof window === 'undefined') return undefined
     const updateLayout = () => {
-      setIsCompactComposer(window.innerWidth < 700)
+      const width = window.innerWidth
+      setIsCompactComposer(width < 700)
+      setIsMobileView(width < 768)
     }
 
     updateLayout()
     window.addEventListener('resize', updateLayout)
     return () => window.removeEventListener('resize', updateLayout)
   }, [])
+
+  useEffect(() => {
+    if (!isMobileView) {
+      setIsMobileMenuOpen(false)
+    }
+  }, [isMobileView])
+
+  useEffect(() => {
+    if (!isModelMenuOpen) return undefined
+    const handleClick = (event: MouseEvent) => {
+      if (modelMenuRef.current && !modelMenuRef.current.contains(event.target as Node)) {
+        setIsModelMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [isModelMenuOpen])
 
   const promptsRemaining = typeof promptLimit === 'number' ? Math.max(promptLimit - promptCount, 0) : undefined
   const limitReached = typeof promptLimit === 'number' && promptsRemaining === 0
@@ -250,12 +276,13 @@ const ChatExperience = (props: ChatExperienceProps) => {
   }
 
   const handleNewChat = () => {
-  const freshConversation = makeConversation(introMessages)
-  setConversations((prev) => [freshConversation, ...prev])
-  setActiveConversationId(freshConversation.id)
-  setPromptCount(0)
-  setPendingFiles([])
-  setInput('')
+    const freshConversation = makeConversation(introMessages)
+    setConversations((prev) => [freshConversation, ...prev])
+    setActiveConversationId(freshConversation.id)
+    setPromptCount(0)
+    setPendingFiles([])
+    setInput('')
+    closeMobileMenuIfNeeded()
   }
 
   const handleSend = () => {
@@ -300,7 +327,18 @@ const ChatExperience = (props: ChatExperienceProps) => {
     }))
   }, [conversations])
 
-  const toggleSidebar = () => setIsSidebarExpanded((state) => !state)
+  const toggleSidebar = () => {
+    if (isMobileView) {
+      setIsMobileMenuOpen((state) => !state)
+      return
+    }
+    setIsSidebarExpanded((state) => !state)
+  }
+  const closeMobileMenuIfNeeded = () => {
+    if (isMobileView) {
+      setIsMobileMenuOpen(false)
+    }
+  }
   const hasConversation = messages.some((message) => message.role === 'user')
   const showConversationWindow = hasConversation || isThinking
   const showHero = !hasConversation
@@ -308,8 +346,14 @@ const ChatExperience = (props: ChatExperienceProps) => {
     setActiveMode(mode)
   }
 
+  const handleModelMenuSelect = (action: 'add' | 'view') => {
+    setIsModelMenuOpen(false)
+    console.info(`Model menu action: ${action}`)
+  }
+
   const handleHistorySelect = (conversationId: string) => {
     setActiveConversationId(conversationId)
+    closeMobileMenuIfNeeded()
   }
 
   const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -348,8 +392,10 @@ const ChatExperience = (props: ChatExperienceProps) => {
     subtitle: profileCard.subtitle,
     cta: profileCard.cta,
   }
+  const navIsExpanded = isMobileView ? true : isSidebarExpanded
 
   const openAuthModal = (tab: 'signin' | 'signup' = 'signin') => {
+    closeMobileMenuIfNeeded()
     setAuthTab(tab)
     setIsAuthOpen(true)
   }
@@ -361,45 +407,79 @@ const ChatExperience = (props: ChatExperienceProps) => {
   }
 
   return (
-    <div className="flex h-screen min-h-screen bg-[radial-gradient(circle_at_20%_-10%,rgba(68,83,149,0.55),rgba(6,8,12,1)_55%)] text-slate-100">
-      <NavigationBar
-        isExpanded={isSidebarExpanded}
-        onToggle={toggleSidebar}
-        onNewChat={handleNewChat}
-        onProfileClick={() => openAuthModal('signin')}
-        onSelectHistoryEntry={handleHistorySelect}
-        activeHistoryId={activeConversationId}
-        historyEntries={historyEntries}
-        profileCard={navigationProfileCard}
-        emptyState="No chats yet"
-      />
+    <div className="relative flex h-screen min-h-screen bg-[radial-gradient(circle_at_20%_-10%,rgba(68,83,149,0.55),rgba(6,8,12,1)_55%)] text-slate-100">
+      {isMobileView && (
+        <button
+          type="button"
+          className={clsx(
+            'fixed left-4 top-4 z-30 flex h-11 w-11 items-center justify-center rounded-2xl border border-white/15 bg-[#04060d]/90 text-white shadow-lg backdrop-blur md:hidden',
+            isMobileMenuOpen && 'opacity-0 pointer-events-none',
+          )}
+          onClick={() => setIsMobileMenuOpen(true)}
+          aria-label="Open navigation"
+        >
+          <svg viewBox="0 0 24 24" className="h-6 w-6 stroke-current" fill="none" strokeWidth={1.8}>
+            <path d="M4 7h16M4 12h10M4 17h16" strokeLinecap="round" />
+          </svg>
+        </button>
+      )}
+
+      <div
+        className={clsx(
+          'z-40 transition-transform duration-300 md:static md:translate-x-0 md:shadow-none',
+          isMobileView
+            ? [
+                'fixed inset-y-0 left-0 w-[280px] max-w-[80vw] shadow-2xl',
+                isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full pointer-events-none',
+              ]
+            : ''
+        )}
+      >
+        <NavigationBar
+          isExpanded={navIsExpanded}
+          onToggle={toggleSidebar}
+          onNewChat={handleNewChat}
+          onProfileClick={() => openAuthModal('signin')}
+          onSelectHistoryEntry={handleHistorySelect}
+          activeHistoryId={activeConversationId}
+          historyEntries={historyEntries}
+          profileCard={navigationProfileCard}
+          emptyState="No chats yet"
+        />
+      </div>
+
+      {isMobileView && isMobileMenuOpen && (
+        <button
+          type="button"
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+          aria-label="Close navigation overlay"
+        />
+      )}
 
       <section
         className={clsx(
-          'flex flex-1 flex-col items-center px-6 py-10 lg:px-12',
+          'flex flex-1 flex-col items-center gap-6 px-4 py-6 sm:px-6 sm:py-10 lg:px-12',
           showHero ? 'overflow-y-auto' : 'overflow-hidden',
         )}
       >
         {showHero && (
-          <header className="mx-auto flex w-full max-w-4xl flex-col items-center gap-4 text-center">
+          <header className="mx-auto flex w-full max-w-4xl flex-col items-center gap-3 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-sky-500 to-indigo-500 text-2xl text-night-900">
               △
             </div>
             <p className="text-xs uppercase tracking-[0.4em] text-slate-400">{roleLabelMap[selectedRole]}</p>
-            <h1 className="text-4xl font-semibold text-white sm:text-5xl">{headline}</h1>
-            <p className="max-w-2xl text-lg text-slate-300">{subheadline}</p>
+            <h1 className="text-3xl font-semibold text-white sm:text-5xl">{headline}</h1>
+            <p className="max-w-2xl text-base text-slate-300 sm:text-lg">{subheadline}</p>
           </header>
         )}
 
         {showConversationWindow && (
           <section
-            className={clsx(
-              'mt-6 w-full max-w-3xl flex-1 overflow-hidden rounded-4xl border border-white/5 bg-white/5 p-6 shadow-pane backdrop-blur',
-              showHero ? 'mt-10' : 'mt-0',
-            )}
+            className="flex-1 w-full max-w-3xl overflow-hidden rounded-3xl border border-white/5 bg-white/5 p-4 shadow-pane backdrop-blur sm:rounded-4xl sm:p-6"
           >
             <div className="flex h-full flex-col">
-              <div className="flex-1 space-y-6 overflow-y-auto pr-1">
+              <div className="flex-1 space-y-4 overflow-y-auto pr-1">
                 {messages.map((message) => {
                   const isUser = message.role === 'user'
                   return (
@@ -412,7 +492,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
                     >
                       <div
                         className={clsx(
-                          'relative flex max-w-[80%] flex-col rounded-3xl border px-4 py-3 text-sm leading-relaxed shadow-sm',
+                          'relative flex max-w-full flex-col rounded-3xl border px-4 py-3 text-sm leading-relaxed shadow-sm sm:max-w-[80%]',
                           isUser
                             ? 'border-sky-500/30 bg-[#03050c]/90 text-slate-100'
                             : 'border-white/10 bg-white/5 text-slate-100',
@@ -425,9 +505,11 @@ const ChatExperience = (props: ChatExperienceProps) => {
                           )}
                         >
                           <span>{isUser ? 'You' : 'AIxHub'}</span>
-                          <span className="text-[11px] font-normal text-slate-400">{message.timestamp}</span>
+                          {!isUser && (
+                            <span className="text-[11px] font-normal text-slate-400">{message.timestamp}</span>
+                          )}
                         </header>
-                        <p className="break-words whitespace-pre-wrap text-base text-slate-100">{message.content}</p>
+                        <p className="break-words whitespace-pre-wrap text-sm text-slate-100 sm:text-base">{message.content}</p>
                         {!!message.attachments?.length && (
                           <ul className="mt-3 flex flex-wrap gap-2 text-xs">
                             {message.attachments.map((file) => (
@@ -464,29 +546,23 @@ const ChatExperience = (props: ChatExperienceProps) => {
           </section>
         )}
 
-        <section className="mt-10 w-full max-w-3xl rounded-4xl border border-white/10 bg-night-900/70 p-6 shadow-pane backdrop-blur">
-          {showHero && (
-            <div className="mb-4 flex flex-col text-left text-sm text-slate-400">
-              <span className="text-base font-semibold text-white">AIxHub</span>
-              <span>How can I help you?</span>
-            </div>
-          )}
+  <section className="w-full max-w-3xl rounded-3xl border border-white/8 bg-[#05070f]/85 p-5 shadow-pane backdrop-blur sm:rounded-4xl sm:p-6">
 
           <div
             className={clsx(
-              'rounded-3xl border border-white/10 bg-[#03050c]/80 shadow-inner transition',
+              'rounded-3xl border border-white/10 bg-[#03050c]/80 shadow-inner transition sm:rounded-[30px]',
               isThinking && 'border-transparent bg-gradient-to-r from-sky-400 via-fuchsia-500 to-amber-400 bg-[length:200%_200%] p-[2px] animate-rainbow',
             )}
           >
             <div
               className={clsx(
-                'flex flex-col gap-4 rounded-[28px] px-5 py-4 sm:flex-row sm:items-end',
+                'flex flex-col gap-3 rounded-[24px] px-4 py-4 sm:flex-row sm:items-end sm:gap-4 sm:px-5',
                 isThinking && 'border border-white/10 bg-[#03050c]/95',
               )}
             >
               <textarea
                 ref={textareaRef}
-                className="min-h-12 flex-1 resize-none bg-transparent text-base text-white placeholder:text-slate-500 focus:outline-none"
+                className="min-h-10 flex-1 resize-none bg-transparent text-sm text-white placeholder:text-slate-500 focus:outline-none sm:text-base"
                 placeholder={`Message ${
                   activeMode === 'deepthink' ? 'AIxHub' : activeMode === 'search' ? 'Search' : 'Models'
                 }`}
@@ -495,13 +571,13 @@ const ChatExperience = (props: ChatExperienceProps) => {
                 onKeyDown={handleComposerKeyDown}
               />
 
-              <div className="flex items-center gap-3 self-end">
+              <div className="flex items-center gap-2 self-end sm:gap-2.5">
                 {attachmentsEnabled && (
                   <>
                     <input ref={fileInputRef} type="file" multiple onChange={handleFileChange} hidden />
                     <button
                       type="button"
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/10 text-white transition hover:border-sky-400/60 hover:text-sky-200"
+                      className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/15 text-slate-200 transition hover:border-sky-400/60 hover:text-white"
                       onClick={openFilePicker}
                       onDrop={handleDrop}
                       onDragOver={handleDragOver}
@@ -511,7 +587,7 @@ const ChatExperience = (props: ChatExperienceProps) => {
                         viewBox="0 0 24 24"
                         role="presentation"
                         focusable="false"
-                        className="h-5 w-5 stroke-current"
+                        className="h-4 w-4 stroke-current"
                         fill="none"
                         strokeWidth={1.8}
                       >
@@ -522,13 +598,13 @@ const ChatExperience = (props: ChatExperienceProps) => {
                 )}
                 <button
                   type="button"
-                  className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 text-night-900 transition hover:from-sky-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-r from-sky-500 to-indigo-500 text-night-900 transition hover:from-sky-400 hover:to-indigo-400 disabled:cursor-not-allowed disabled:opacity-60"
                   onClick={handleSend}
                   disabled={isThinking || limitReached}
                   aria-label={limitReached ? 'Prompt limit reached' : 'Send prompt'}
                 >
                   <span aria-hidden="true">
-                    <svg viewBox="0 0 24 24" role="presentation" focusable="false" className="h-5 w-5 fill-none stroke-current stroke-2">
+                    <svg viewBox="0 0 24 24" role="presentation" focusable="false" className="h-4 w-4 fill-none stroke-current stroke-2">
                       <path d="M5 12h12.5M14.5 7l5 5-5 5" />
                     </svg>
                   </span>
@@ -537,18 +613,12 @@ const ChatExperience = (props: ChatExperienceProps) => {
             </div>
           </div>
 
-          {showHero && (
-            <p className="mt-3 text-sm text-slate-400">
-              {isCompactComposer
-                ? 'Tap the arrow to send. Shift+Enter adds a line break.'
-                : 'Press Enter to send. Use Shift+Enter for a new line.'}
-            </p>
-          )}
+          
 
           {attachmentsEnabled && pendingFiles.length > 0 && (
-            <ul className="mt-4 flex flex-wrap gap-3">
+            <ul className="mt-4 flex flex-wrap gap-2.5 text-sm">
               {pendingFiles.map((file) => (
-                <li key={file.name} className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-1 text-sm">
+                <li key={file.name} className="flex items-center gap-1.5 rounded-2xl border border-white/10 bg-white/5 px-3 py-1">
                   <span className="font-medium text-white">{file.name}</span>
                   <small className="text-slate-400">{bytesToSize(file.size)}</small>
                   <button
@@ -564,22 +634,59 @@ const ChatExperience = (props: ChatExperienceProps) => {
             </ul>
           )}
 
-          <div className="mt-6 flex gap-3 rounded-3xl border border-white/10 bg-white/5 p-1">
-            {(['deepthink', 'search', 'models'] as ModeOption[]).map((mode) => (
+          <div className="mt-5 flex flex-col gap-2 text-[11px] font-semibold uppercase tracking-[0.3em] text-slate-400 sm:flex-row sm:items-center sm:justify-between">
+            <button
+              type="button"
+              className={clsx(
+                'w-full rounded-full border border-white/15 px-4 py-2 tracking-[0.25em] transition sm:w-auto sm:px-6',
+                activeMode === 'deepthink'
+                  ? 'bg-gradient-to-r from-sky-500 to-indigo-500 text-night-900 shadow-lg'
+                  : 'text-slate-300 hover:text-white',
+              )}
+              onClick={() => handleModeChange('deepthink')}
+            >
+              DeepThink
+            </button>
+
+            <div ref={modelMenuRef} className="relative w-full sm:w-auto">
               <button
-                key={mode}
                 type="button"
-                className={clsx(
-                  'flex-1 rounded-2xl px-4 py-2 text-sm font-semibold transition',
-                  mode === activeMode
-                    ? 'bg-gradient-to-r from-sky-500 to-indigo-500 text-night-900'
-                    : 'text-slate-300 hover:text-white',
-                )}
-                onClick={() => handleModeChange(mode)}
+                className="flex w-full items-center justify-between gap-3 rounded-full border border-white/15 bg-transparent px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.25em] text-slate-200 transition hover:border-indigo-400/40 sm:min-w-[170px]"
+                onClick={() => setIsModelMenuOpen((state) => !state)}
+                aria-haspopup="menu"
+                aria-expanded={isModelMenuOpen}
               >
-                {mode === 'deepthink' ? 'DeepThink' : mode === 'search' ? 'Search' : 'Models'}
+                Models
+                <svg
+                  viewBox="0 0 24 24"
+                  className={clsx('h-4 w-4 transition-transform', isModelMenuOpen ? 'rotate-180' : 'rotate-0')}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
-            ))}
+
+              {isModelMenuOpen && (
+                <div className="absolute right-0 top-12 z-10 w-48 rounded-3xl border border-white/10 bg-[#090d18]/95 p-2 shadow-xl">
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/5"
+                    onClick={() => handleModelMenuSelect('add')}
+                  >
+                    Add model
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-1 flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left text-sm text-slate-200 transition hover:bg-white/5"
+                    onClick={() => handleModelMenuSelect('view')}
+                  >
+                    View models
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           {typeof promptLimit === 'number' && (
