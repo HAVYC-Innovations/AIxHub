@@ -1,0 +1,17 @@
+[project]
+name = "aixhub-ai"
+version = "0.1.0"
+description = "AIxHub Hugging Face + LangChain worker"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "langchain>=1.0.3",
+    "langchain-anthropic>=1.0.0",
+    "langchain-deepseek>=1.0.0",
+    "langchain-google-genai>=3.0.0",
+    "langgraph>=1.0.2",
+    "python-dotenv>=1.2.1",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "huggingface-hub>=0.24.0",
+]

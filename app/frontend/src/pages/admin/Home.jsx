@@ -1,4 +1,5 @@
 import ChatExperience from '../../components/chat/ChatExperience'
+import ModelKnowledgeCenter from '../../components/models/ModelKnowledgeCenter'
 
 const adminIntro = [
 	'Welcome back, Admin. All workspaces are synchronized and ready for your directives.',
@@ -12,6 +13,7 @@ const AdminHome = () => (
 		subheadline="Monitor every workspace, publish prompts, and orchestrate assets without leaving the chat."
 		attachmentsEnabled
 		introMessages={adminIntro}
+		knowledgeCenterSlot={<ModelKnowledgeCenter role="admin" />}
 	/>
 )
 
